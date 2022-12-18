@@ -1,5 +1,7 @@
 {
 	"fileVersion": 1,
 	"versions": {
+		"bindbc-gles": "0.0.1",
+		"bindbc-loader": "0.3.2"
 	}
 }
