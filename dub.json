@@ -1,0 +1,9 @@
+{
+	"authors": [
+		"outlandkarasu"
+	],
+	"copyright": "Copyright © 2022, outlandkarasu",
+	"description": "A d-man viewer for EGL devices.",
+	"license": "BSL-1.0",
+	"name": "dman-egl"
+}

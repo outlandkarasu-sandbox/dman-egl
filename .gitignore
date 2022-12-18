@@ -1,0 +1,16 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/dman-egl
+dman-egl.so
+dman-egl.dylib
+dman-egl.dll
+dman-egl.a
+dman-egl.lib
+dman-egl-test-*
+*.exe
+*.pdb
+*.o
+*.obj
+*.lst
