@@ -3,10 +3,13 @@
 		"outlandkarasu"
 	],
 	"copyright": "Copyright © 2022, outlandkarasu",
-	"dependencies": {
-		"bindbc-gles": "~>0.0.1"
-	},
 	"description": "A d-man viewer for EGL devices.",
 	"license": "BSL-1.0",
-	"name": "dman-egl"
+	"name": "dman-egl",
+	"dependencies": {
+		"bindbc-gles": {
+			"path": "../bindbc-gles/"
+		}
+	},
+	"libs": ["drm", "assimp"]
 }
