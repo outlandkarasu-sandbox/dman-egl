@@ -11,7 +11,8 @@
 	],
 	"dependencies": {
 		"bindbc-gles": {
-			"path": "../bindbc-gles/"
+			"repository": "git+https://github.com/outlandkarasu/bindbc-gles.git",
+			"version": "e7afc96c4a88b75ed266b02837a1534211e80cdb"
 		}
 	},
 	"libs": ["drm", "assimp"]

@@ -1,7 +1,7 @@
 {
 	"fileVersion": 1,
 	"versions": {
-		"bindbc-gles": {"path":"../bindbc-gles/"},
+		"bindbc-gles": {"version":"e7afc96c4a88b75ed266b02837a1534211e80cdb","repository":"git+https://github.com/outlandkarasu/bindbc-gles.git"},
 		"bindbc-loader": "0.3.2"
 	}
 }
