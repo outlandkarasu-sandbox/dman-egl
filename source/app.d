@@ -12,6 +12,8 @@ import drm.drm;
 import drm.xf86drm;
 import drm.xf86drmMode;
 
+import assets;
+
 void main()
 {
     // EGLロード
@@ -244,8 +246,92 @@ void main()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // シェーダーの生成
-    immutable programId = createShaderProgram(import("dman.vert"), import("dman.frag"));
-    scope(exit) glDeleteProgram(programId);
+    immutable programId = createShaderProgram(
+        import("dman.vert"), import("dman.frag"));
+    scope (exit)
+        glDeleteProgram(programId);
+
+    // VBOの生成
+    GLuint verticesBuffer;
+    glGenBuffers(1, &verticesBuffer);
+    scope (exit)
+        glDeleteBuffers(1, &verticesBuffer);
+
+    glBindBuffer(GL_ARRAY_BUFFER, verticesBuffer);
+    glBufferData(
+        GL_ARRAY_BUFFER,
+        DMAN_VERTICES.length * Vertex.sizeof,
+        &DMAN_VERTICES[0],
+        GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // IBOの生成
+    GLuint elementBuffer;
+    glGenBuffers(1, &elementBuffer);
+    scope (exit)
+        glDeleteBuffers(1, &elementBuffer);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBuffer);
+    glBufferData(
+        GL_ELEMENT_ARRAY_BUFFER,
+        DMAN_INDICES.length * GLushort.sizeof,
+        &DMAN_INDICES[0],
+        GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    // テクスチャの生成
+    GLuint texture;
+    glGenTextures(1, &texture);
+    scope (exit)
+        glDeleteTextures(1, &texture);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGB,
+        DMAN_TEXTURE_WIDTH,
+        DMAN_TEXTURE_HEIGHT,
+        0,
+        GL_RGB,
+        GL_UNSIGNED_BYTE,
+        &DMAN_TEXTURE[0]);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    // VAOの生成
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
+    scope (exit)
+        glDeleteVertexArrays(1, &vao);
+
+    // VAOの内容設定
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, verticesBuffer);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, Vertex.sizeof, cast(const(GLvoid)*) 0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(
+        1, 4, GL_UNSIGNED_BYTE, GL_TRUE, Vertex.sizeof, cast(const(GLvoid)*) Vertex.color.offsetof);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(
+        2, 2, GL_FLOAT, GL_FALSE, Vertex.sizeof, cast(const(GLvoid)*) Vertex.textureCoord.offsetof);
+    glEnableVertexAttribArray(2);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBuffer);
+    glBindVertexArray(0);
+
+    // 設定済みのバッファを選択解除する。
+    glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    // uniform変数のlocationを取得しておく。
+    immutable transformLocation = glGetUniformLocation(programId, "transform");
 
     enforce(eglSwapBuffers(display, surface));
     Thread.sleep(dur!"seconds"(100));
@@ -254,7 +340,8 @@ void main()
 /**
  *  OpenGL関連エラー例外
  */
-class OpenGLException : Exception {
+class OpenGLException : Exception
+{
     mixin basicExceptionCtors;
 }
 
@@ -269,10 +356,12 @@ class OpenGLException : Exception {
  *  Throws:
  *      OpenGlException エラー発生時にスロー
  */
-GLuint compileShader(string source, GLenum shaderType) {
+GLuint compileShader(string source, GLenum shaderType)
+{
     // シェーダー生成。エラー時は破棄する。
     immutable shaderId = glCreateShader(shaderType);
-    scope(failure) glDeleteShader(shaderId);
+    scope (failure)
+        glDeleteShader(shaderId);
 
     // シェーダーのコンパイル
     immutable length = cast(GLint) source.length;
@@ -283,7 +372,8 @@ GLuint compileShader(string source, GLenum shaderType) {
     // コンパイル結果取得
     GLint status;
     glGetShaderiv(shaderId, GL_COMPILE_STATUS, &status);
-    if(status == GL_FALSE) {
+    if (status == GL_FALSE)
+    {
         // コンパイルエラー発生。ログを取得して例外を投げる。
         GLint logLength;
         glGetShaderiv(shaderId, GL_INFO_LOG_LENGTH, &logLength);
@@ -305,28 +395,35 @@ GLuint compileShader(string source, GLenum shaderType) {
  *  Throws:
  *      OpenGlException コンパイルエラー等発生時にスロー
  */
-GLuint createShaderProgram(string vertexShaderSource, string fragmentShaderSource) {
+GLuint createShaderProgram(string vertexShaderSource, string fragmentShaderSource)
+{
     // 頂点シェーダーコンパイル
     immutable vertexShaderId = compileShader(vertexShaderSource, GL_VERTEX_SHADER);
-    scope(exit) glDeleteShader(vertexShaderId);
+    scope (exit)
+        glDeleteShader(vertexShaderId);
 
     // フラグメントシェーダーコンパイル
     immutable fragmentShaderId = compileShader(fragmentShaderSource, GL_FRAGMENT_SHADER);
-    scope(exit) glDeleteShader(fragmentShaderId);
+    scope (exit)
+        glDeleteShader(fragmentShaderId);
 
     // プログラム生成
     auto programId = glCreateProgram();
-    scope(failure) glDeleteProgram(programId);
+    scope (failure)
+        glDeleteProgram(programId);
     glAttachShader(programId, vertexShaderId);
-    scope(exit) glDetachShader(programId, vertexShaderId);
+    scope (exit)
+        glDetachShader(programId, vertexShaderId);
     glAttachShader(programId, fragmentShaderId);
-    scope(exit) glDetachShader(programId, fragmentShaderId);
+    scope (exit)
+        glDetachShader(programId, fragmentShaderId);
 
     // プログラムのリンク
     glLinkProgram(programId);
     GLint status;
     glGetProgramiv(programId, GL_LINK_STATUS, &status);
-    if(status == GL_FALSE) {
+    if (status == GL_FALSE)
+    {
         // エラー発生時はメッセージを取得して例外を投げる
         GLint logLength;
         glGetProgramiv(programId, GL_INFO_LOG_LENGTH, &logLength);

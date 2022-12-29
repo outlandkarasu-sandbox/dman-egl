@@ -46,6 +46,12 @@ struct Vertex {
 Original URL: https://3d.nicovideo.jp/works/td28301 
 */
 
+/// D言語くんテクスチャサイズ
+enum DMAN_TEXTURE_WIDTH = 32;
+
+/// ditto
+enum DMAN_TEXTURE_HEIGHT = 32;
+
 /// D言語くんテクスチャ
 immutable GLubyte[] DMAN_TEXTURE = [
     218, 2, 5, 218, 2, 5, 218, 2, 5, 218, 2, 5, 218, 2, 5, 218, 2, 5, 218, 2, 5,
