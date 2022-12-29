@@ -241,10 +241,6 @@ void main()
     glViewport(0, 0, width, height);
     glEnable(GL_DEPTH_TEST);
 
-    // 画面のクリア
-    glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     // シェーダーの生成
     immutable programId = createShaderProgram(
         import("dman.vert"), import("dman.frag"));
@@ -332,6 +328,37 @@ void main()
 
     // uniform変数のlocationを取得しておく。
     immutable transformLocation = glGetUniformLocation(programId, "transform");
+    immutable textureLocation = glGetUniformLocation(programId, "textureSampler");
+
+    // 画面のクリア
+    glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // VAO・シェーダーを選択
+    glUseProgram(programId);
+    glBindVertexArray(vao);
+
+    // 変換行列を設定
+    immutable float[4 * 4] transformMatrix = [
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f,
+    ];
+    glUniformMatrix4fv(transformLocation, 1, false, &transformMatrix[0]);
+
+    // テクスチャ選択
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glUniform1i(textureLocation, 0);
+
+    // 描画実行
+    glDrawElements(GL_TRIANGLES, cast(GLsizei) DMAN_INDICES.length, GL_UNSIGNED_SHORT, cast(const(GLvoid)*) 0);
+
+    // 描画完了
+    glBindVertexArray(0);
+    glUseProgram(0);
+    glFlush();
 
     enforce(eglSwapBuffers(display, surface));
     Thread.sleep(dur!"seconds"(100));
