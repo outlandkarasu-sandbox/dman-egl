@@ -1,8 +1,9 @@
 import std.stdio;
 import std.exception : enforce, errnoEnforce, basicExceptionCtors, assumeUnique;
 import std.string : fromStringz;
-import core.time : dur;
+import core.time : dur, MonoTime;
 import core.thread : Thread;
+import std.math : cos, sin;
 
 import bindbc.gles.gles;
 import bindbc.gles.egl;
@@ -135,6 +136,7 @@ void main()
         drmConnector.modes[0].vrefresh);
     auto height = drmConnector.modes[0].vdisplay;
     auto width = drmConnector.modes[0].hdisplay;
+    auto fps = drmConnector.modes[0].vrefresh;
 
     // CRTC設定
     auto drmCRTC = drmEncoder.crtc_id;
@@ -330,38 +332,64 @@ void main()
     immutable transformLocation = glGetUniformLocation(programId, "transform");
     immutable textureLocation = glGetUniformLocation(programId, "textureSampler");
 
-    // 画面のクリア
-    glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    // VAO・シェーダーを選択
-    glUseProgram(programId);
-    glBindVertexArray(vao);
-
-    // 変換行列を設定
-    immutable float[4 * 4] transformMatrix = [
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f,
+    // スケール・移動行列
+    immutable float[4 * 4] scaleMatrix = [
+        0.005f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.005f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.005f, 0.0f,
+        0.0f, -1.0f, 0.0f, 1.0f,
     ];
-    glUniformMatrix4fv(transformLocation, 1, false, &transformMatrix[0]);
 
-    // テクスチャ選択
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glUniform1i(textureLocation, 0);
+    // 変換行列
+    float[4 * 4] transformMatrix;
 
-    // 描画実行
-    glDrawElements(GL_TRIANGLES, cast(GLsizei) DMAN_INDICES.length, GL_UNSIGNED_SHORT, cast(const(GLvoid)*) 0);
+    immutable frameDuration = dur!"seconds"(1) / fps;
+    foreach (t; 0 .. (fps * 60))
+    {
+        immutable start = MonoTime.currTime;
+        // 画面のクリア
+        glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // 描画完了
-    glBindVertexArray(0);
-    glUseProgram(0);
-    glFlush();
+        // VAO・シェーダーを選択
+        glUseProgram(programId);
+        glBindVertexArray(vao);
 
-    enforce(eglSwapBuffers(display, surface));
-    Thread.sleep(dur!"seconds"(100));
+        // 回転行列
+        immutable float[4 * 4] rotateMatrix = [
+            cos(0.1f * t), 0.0f, sin(0.1f * t), 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f,
+            -sin(0.1f * t), 0.0f, cos(0.1f * t), 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f,
+        ];
+
+        // 変換行列を設定
+        foreach (i; 0 .. 4) {
+            foreach (j; 0 .. 4) {
+                float value = 0.0;
+                foreach (k; 0 .. 4) {
+                    value += rotateMatrix[i * 4 + k] * scaleMatrix[k * 4 + j];
+                }
+                transformMatrix[i * 4 + j] = value;
+            }
+        }
+
+        glUniformMatrix4fv(transformLocation, 1, false, &transformMatrix[0]);
+
+        // テクスチャ選択
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glUniform1i(textureLocation, 0);
+
+        // 描画実行
+        glDrawElements(GL_TRIANGLES, cast(GLsizei) DMAN_INDICES.length, GL_UNSIGNED_SHORT, cast(const(GLvoid)*) 0);
+
+        // 描画完了
+        glFlush();
+
+        enforce(eglSwapBuffers(display, surface));
+        Thread.sleep(frameDuration - (MonoTime.currTime - start));
+    }
 }
 
 /**
@@ -370,6 +398,16 @@ void main()
 class OpenGLException : Exception
 {
     mixin basicExceptionCtors;
+}
+
+enum GLerror
+{
+    noError = GL_NO_ERROR,
+    invalidEnum = GL_INVALID_ENUM,
+    invalidValue = GL_INVALID_VALUE,
+    invalidOperation = GL_INVALID_OPERATION,
+    invalidFramebufferOperation = GL_INVALID_FRAMEBUFFER_OPERATION,
+    outOfMemory = GL_OUT_OF_MEMORY,
 }
 
 /**
