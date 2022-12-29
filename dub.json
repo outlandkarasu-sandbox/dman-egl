@@ -6,6 +6,9 @@
 	"description": "A d-man viewer for EGL devices.",
 	"license": "BSL-1.0",
 	"name": "dman-egl",
+	"stringImportPaths": [
+		"shaders/"
+	],
 	"dependencies": {
 		"bindbc-gles": {
 			"path": "../bindbc-gles/"

@@ -1,5 +1,5 @@
 import std.stdio;
-import std.exception : enforce, errnoEnforce;
+import std.exception : enforce, errnoEnforce, basicExceptionCtors, assumeUnique;
 import std.string : fromStringz;
 import core.time : dur;
 import core.thread : Thread;
@@ -243,6 +243,97 @@ void main()
     glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    // シェーダーの生成
+    immutable programId = createShaderProgram(import("dman.vert"), import("dman.frag"));
+    scope(exit) glDeleteProgram(programId);
+
     enforce(eglSwapBuffers(display, surface));
     Thread.sleep(dur!"seconds"(100));
+}
+
+/**
+ *  OpenGL関連エラー例外
+ */
+class OpenGLException : Exception {
+    mixin basicExceptionCtors;
+}
+
+/**
+ *  シェーダーをコンパイルする。
+ *
+ *  Params:
+ *      source = シェーダーのソースコード
+ *      shaderType = シェーダーの種類
+ *  Returns:
+ *      コンパイルされたシェーダーのID
+ *  Throws:
+ *      OpenGlException エラー発生時にスロー
+ */
+GLuint compileShader(string source, GLenum shaderType) {
+    // シェーダー生成。エラー時は破棄する。
+    immutable shaderId = glCreateShader(shaderType);
+    scope(failure) glDeleteShader(shaderId);
+
+    // シェーダーのコンパイル
+    immutable length = cast(GLint) source.length;
+    const sourcePointer = source.ptr;
+    glShaderSource(shaderId, 1, &sourcePointer, &length);
+    glCompileShader(shaderId);
+
+    // コンパイル結果取得
+    GLint status;
+    glGetShaderiv(shaderId, GL_COMPILE_STATUS, &status);
+    if(status == GL_FALSE) {
+        // コンパイルエラー発生。ログを取得して例外を投げる。
+        GLint logLength;
+        glGetShaderiv(shaderId, GL_INFO_LOG_LENGTH, &logLength);
+        auto log = new GLchar[logLength];
+        glGetShaderInfoLog(shaderId, logLength, null, log.ptr);
+        throw new OpenGLException(assumeUnique(log));
+    }
+    return shaderId;
+}
+
+/**
+ *  シェーダープログラムを生成する。
+ *
+ *  Params:
+ *      vertexShaderSource = 頂点シェーダーのソースコード
+ *      fragmentShaderSource = フラグメントシェーダーのソースコード
+ *  Returns:
+ *      生成されたシェーダープログラム
+ *  Throws:
+ *      OpenGlException コンパイルエラー等発生時にスロー
+ */
+GLuint createShaderProgram(string vertexShaderSource, string fragmentShaderSource) {
+    // 頂点シェーダーコンパイル
+    immutable vertexShaderId = compileShader(vertexShaderSource, GL_VERTEX_SHADER);
+    scope(exit) glDeleteShader(vertexShaderId);
+
+    // フラグメントシェーダーコンパイル
+    immutable fragmentShaderId = compileShader(fragmentShaderSource, GL_FRAGMENT_SHADER);
+    scope(exit) glDeleteShader(fragmentShaderId);
+
+    // プログラム生成
+    auto programId = glCreateProgram();
+    scope(failure) glDeleteProgram(programId);
+    glAttachShader(programId, vertexShaderId);
+    scope(exit) glDetachShader(programId, vertexShaderId);
+    glAttachShader(programId, fragmentShaderId);
+    scope(exit) glDetachShader(programId, fragmentShaderId);
+
+    // プログラムのリンク
+    glLinkProgram(programId);
+    GLint status;
+    glGetProgramiv(programId, GL_LINK_STATUS, &status);
+    if(status == GL_FALSE) {
+        // エラー発生時はメッセージを取得して例外を投げる
+        GLint logLength;
+        glGetProgramiv(programId, GL_INFO_LOG_LENGTH, &logLength);
+        auto log = new GLchar[logLength];
+        glGetProgramInfoLog(programId, logLength, null, log.ptr);
+        throw new OpenGLException(assumeUnique(log));
+    }
+
+    return programId;
 }
