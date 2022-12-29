@@ -1,6 +1,8 @@
 import std.stdio;
 import std.exception : enforce, errnoEnforce;
 import std.string : fromStringz;
+import core.time : dur;
+import core.thread : Thread;
 
 import bindbc.gles.gles;
 import bindbc.gles.egl;
@@ -219,5 +221,16 @@ void main()
     GLint[] maxViewportDims = [-1, -1];
     glGetIntegerv(GL_MAX_VIEWPORT_DIMS, &maxViewportDims[0]);
     writefln("max viewport dims: %s", maxViewportDims);
+
+    // ビューポートの設定
+    glViewport(0, 0, width, height);
+    glEnable(GL_DEPTH_TEST);
+
+    // 画面のクリア
+    glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    enforce(eglSwapBuffers(display, surface));
+    Thread.sleep(dur!"seconds"(100));
 }
 

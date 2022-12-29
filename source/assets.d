@@ -3,7 +3,7 @@
 */
 module assets;
 
-import bindbc.gles :
+import bindbc.gles.gles :
     GLfloat,
     GLubyte,
     GLushort;
