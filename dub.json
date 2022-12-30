@@ -5,5 +5,15 @@
 	"copyright": "Copyright © 2022, outlandkarasu",
 	"description": "A d-man viewer for EGL devices.",
 	"license": "BSL-1.0",
-	"name": "dman-egl"
+	"name": "dman-egl",
+	"stringImportPaths": [
+		"shaders/"
+	],
+	"dependencies": {
+		"bindbc-gles": {
+			"repository": "git+https://github.com/outlandkarasu/bindbc-gles.git",
+			"version": "e7afc96c4a88b75ed266b02837a1534211e80cdb"
+		}
+	},
+	"libs": ["drm", "assimp"]
 }
